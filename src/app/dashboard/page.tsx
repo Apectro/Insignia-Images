@@ -8,9 +8,11 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Welcome, {session?.user?.name}!</h1>
-        <p className="text-muted-foreground">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2 sm:mb-0">
+          Welcome, {session?.user?.name}!
+        </h1>
+        <p className="text-sm text-muted-foreground">
           {new Date().toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
@@ -19,7 +21,7 @@ export default async function DashboardPage() {
           })}
         </p>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Images</CardTitle>

@@ -43,8 +43,8 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <Card className="w-full max-w-md">
+    <div className="flex items-center justify-center min-h-screen bg-background p-4">
+      <Card className="w-full max-w-sm">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">Create an account</CardTitle>
           <CardDescription className="text-center">

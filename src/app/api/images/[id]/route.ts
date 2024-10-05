@@ -17,7 +17,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     const db = client.db();
     const image = await db.collection('images').findOne({
       _id: new ObjectId(params.id),
-      userId: session.user.email,
+      userId: session.user.id, // Changed from email to id for consistency
     });
 
     if (!image) {
@@ -44,7 +44,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const db = client.db();
     const image = await db.collection('images').findOne({
       _id: new ObjectId(params.id),
-      userId: session.user.email,
+      userId: session.user.id, // Changed from email to id for consistency
     });
 
     if (!image) {
@@ -52,11 +52,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     const oldPath = join(process.cwd(), 'public', image.path);
-    const newPath = join(process.cwd(), 'public', 'uploads', newFileName);
+    const newPath = join(process.cwd(), 'public', 'uploads', 'images', newFileName);
 
     await rename(oldPath, newPath);
 
-    const newImagePath = `/uploads/${newFileName}`;
+    const newImagePath = `/uploads/images/${newFileName}`;
     await db
       .collection('images')
       .updateOne({ _id: new ObjectId(params.id) }, { $set: { filename: newFileName, path: newImagePath } });
@@ -88,7 +88,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     const db = client.db();
     const image = await db.collection('images').findOne({
       _id: new ObjectId(params.id),
-      userId: session.user.email,
+      userId: session.user.id, // Changed from email to id for consistency
     });
 
     if (!image) {

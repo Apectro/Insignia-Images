@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Loader2, Edit, Trash } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface ImageData {
   _id: string;
@@ -16,25 +18,32 @@ interface ImageData {
   uploadedAt: string;
 }
 
-export default function ImageGrid() {
-  const [images, setImages] = useState<ImageData[]>([]);
+interface ImageGridProps {
+  initialImages: ImageData[];
+}
+
+export default function ImageGrid({ initialImages }: ImageGridProps) {
+  const [images, setImages] = useState<ImageData[]>(initialImages);
   const [selectedImage, setSelectedImage] = useState<ImageData | null>(null);
   const [newFileName, setNewFileName] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
+    const fetchImages = async () => {
+      const response = await fetch('/api/images');
+      if (response.ok) {
+        const data = await response.json();
+        setImages(data);
+      }
+    };
     fetchImages();
   }, []);
 
-  const fetchImages = async () => {
-    const response = await fetch('/api/images');
-    if (response.ok) {
-      const data = await response.json();
-      setImages(data);
-    }
-  };
-
   const handleRename = async (id: string) => {
+    setIsRenaming(true);
     try {
       const extension = selectedImage?.filename.split('.').pop();
       const fullNewFileName = `${newFileName}.${extension}`;
@@ -64,10 +73,13 @@ export default function ImageGrid() {
         description: 'Failed to rename image',
         variant: 'destructive',
       });
+    } finally {
+      setIsRenaming(false);
     }
   };
 
   const handleDelete = async (id: string) => {
+    setIsDeleting(true);
     try {
       const response = await fetch(`/api/images/${id}`, {
         method: 'DELETE',
@@ -89,6 +101,8 @@ export default function ImageGrid() {
         description: 'Failed to delete image',
         variant: 'destructive',
       });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -122,14 +136,16 @@ export default function ImageGrid() {
                     View
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+                <DialogContent className="w-full max-w-lg max-h-[90vh] flex flex-col">
                   <DialogHeader>
-                    <DialogTitle>{selectedImage?.filename}</DialogTitle>
+                    <DialogTitle className="text-lg sm:text-xl break-all">
+                      {selectedImage?.filename}
+                    </DialogTitle>
                   </DialogHeader>
                   {selectedImage && (
                     <ScrollArea className="flex-grow">
                       <div className="flex flex-col items-center gap-4 p-4">
-                        <div className="relative w-full h-[60vh]">
+                        <div className="relative w-full h-[40vh] sm:h-[50vh]">
                           <Image
                             src={selectedImage.path}
                             alt={selectedImage.filename}
@@ -141,22 +157,39 @@ export default function ImageGrid() {
                           value={`${window.location.origin}${selectedImage.path}`}
                           readOnly
                           onClick={(e) => e.currentTarget.select()}
-                          className="w-full"
+                          className="w-full text-sm"
                         />
-                        <div className="flex gap-2 w-full">
+                        <div className="flex flex-col sm:flex-row gap-2 w-full">
                           <Input
                             value={newFileName}
                             onChange={(e) => setNewFileName(e.target.value)}
                             placeholder="New file name (without extension)"
-                            className="flex-grow"
+                            className="flex-grow text-sm"
                           />
-                          <Button onClick={() => handleRename(selectedImage._id)}>Rename</Button>
+                          <Button
+                            onClick={() => handleRename(selectedImage._id)}
+                            disabled={isRenaming}
+                            className="w-full sm:w-auto"
+                          >
+                            {isRenaming ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Edit className="h-4 w-4 mr-2" />
+                            )}
+                            Rename
+                          </Button>
                         </div>
                         <Button
                           variant="destructive"
                           onClick={() => handleDelete(selectedImage._id)}
                           className="w-full"
+                          disabled={isDeleting}
                         >
+                          {isDeleting ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash className="h-4 w-4 mr-2" />
+                          )}
                           Delete
                         </Button>
                       </div>
