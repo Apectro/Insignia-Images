@@ -93,46 +93,43 @@ export default function FileList() {
 
   const handleCopyLink = (path: string) => {
     const fullUrl = `${window.location.origin}${path}`;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(fullUrl).then(
-        () => {
-          toast({
-            title: 'Success',
-            description: 'File link copied to clipboard',
-          });
-        },
-        (err) => {
-          console.error('Could not copy text: ', err);
-          toast({
-            title: 'Error',
-            description: 'Failed to copy file link',
-            variant: 'destructive',
-          });
-        }
-      );
-    } else {
-      // Fallback for browsers that don't support the Clipboard API
-      const textArea = document.createElement('textarea');
-      textArea.value = fullUrl;
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      try {
-        document.execCommand('copy');
+
+    const copyToClipboard = (text: string) => {
+      if (navigator.clipboard && window.isSecureContext) {
+        // Navigator Clipboard API method
+        return navigator.clipboard.writeText(text);
+      } else {
+        // Fallback method using a temporary textarea element
+        let textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        return new Promise<void>((resolve, reject) => {
+          document.execCommand('copy') ? resolve() : reject();
+          textArea.remove();
+        });
+      }
+    };
+
+    copyToClipboard(fullUrl)
+      .then(() => {
         toast({
           title: 'Success',
           description: 'File link copied to clipboard',
         });
-      } catch (err) {
-        console.error('Fallback: Oops, unable to copy', err);
+      })
+      .catch((err) => {
+        console.error('Could not copy text: ', err);
         toast({
           title: 'Error',
           description: 'Failed to copy file link',
           variant: 'destructive',
         });
-      }
-      document.body.removeChild(textArea);
-    }
+      });
   };
 
   const handleDelete = async (id: string) => {

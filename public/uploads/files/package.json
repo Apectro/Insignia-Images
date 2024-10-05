@@ -1,0 +1,21 @@
+{
+  "name": "your-bot",
+  "version": "1.0.0",
+  "description": "A Discord bot with sharding and MongoDB using Prisma",
+  "main": "src/shard.js",
+  "scripts": {
+    "start": "node src/shard.js",
+    "deploy-commands": "node deploy-commands.js"
+  },
+  "dependencies": {
+    "@discordjs/rest": "^1.5.0",
+    "@prisma/client": "^4.8.0",
+    "axios": "^1.7.7",
+    "axios-cookiejar-support": "^5.0.3",
+    "discord-api-types": "^0.37.48",
+    "discord.js": "^14.7.1",
+    "dotenv": "^16.0.3",
+    "prisma": "^4.8.0",
+    "tough-cookie": "^5.0.0"
+  }
+}
