@@ -38,7 +38,7 @@ export default function FileList() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { refreshTrigger } = useFileContext();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
 
   const filesPerPage = 7;
 
@@ -93,22 +93,46 @@ export default function FileList() {
 
   const handleCopyLink = (path: string) => {
     const fullUrl = `${window.location.origin}${path}`;
-    navigator.clipboard.writeText(fullUrl).then(
-      () => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(fullUrl).then(
+        () => {
+          toast({
+            title: 'Success',
+            description: 'File link copied to clipboard',
+          });
+        },
+        (err) => {
+          console.error('Could not copy text: ', err);
+          toast({
+            title: 'Error',
+            description: 'Failed to copy file link',
+            variant: 'destructive',
+          });
+        }
+      );
+    } else {
+      // Fallback for browsers that don't support the Clipboard API
+      const textArea = document.createElement('textarea');
+      textArea.value = fullUrl;
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
         toast({
           title: 'Success',
           description: 'File link copied to clipboard',
         });
-      },
-      (err) => {
-        console.error('Could not copy text: ', err);
+      } catch (err) {
+        console.error('Fallback: Oops, unable to copy', err);
         toast({
           title: 'Error',
           description: 'Failed to copy file link',
           variant: 'destructive',
         });
       }
-    );
+      document.body.removeChild(textArea);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -151,7 +175,11 @@ export default function FileList() {
     setCurrentPage(newPage);
   };
 
-  if (!session) {
+  if (status === 'loading') {
+    return <div>Loading...</div>;
+  }
+
+  if (status === 'unauthenticated') {
     return <div>Please sign in to view your files.</div>;
   }
 
