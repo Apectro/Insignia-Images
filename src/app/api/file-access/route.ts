@@ -1,25 +1,25 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/db';
 import { ObjectId } from 'mongodb';
 
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const fileIdentifier = searchParams.get('fileIdentifier');
+  const encodedClientIp = searchParams.get('clientIp');
+  const authKey = searchParams.get('authKey');
+
+  if (!fileIdentifier) {
+    return NextResponse.json({ error: 'File identifier is required' }, { status: 400 });
+  }
+
+  if (!encodedClientIp) {
+    return NextResponse.json({ error: 'Client IP is required' }, { status: 400 });
+  }
+
+  // Decode the client IP
+  const clientIp = decodeURIComponent(encodedClientIp);
+
   try {
-    const { searchParams } = new URL(request.url);
-    const fileIdentifier = searchParams.get('fileIdentifier');
-    const encodedClientIp = searchParams.get('clientIp');
-    const authKey = searchParams.get('authKey');
-
-    if (!fileIdentifier) {
-      return NextResponse.json({ error: 'File identifier is required' }, { status: 400 });
-    }
-
-    if (!encodedClientIp) {
-      return NextResponse.json({ error: 'Client IP is required' }, { status: 400 });
-    }
-
-    // Decode the client IP
-    const clientIp = decodeURIComponent(encodedClientIp);
-
     const client = await clientPromise;
     const db = client.db();
 
@@ -46,7 +46,9 @@ export async function GET(request: NextRequest) {
 
     // Simple IP check
     if (user.allowedIPs && user.allowedIPs.length > 0) {
-      if (!user.allowedIPs.includes(clientIp)) {
+      // Remove the IPv6 prefix if present
+      const cleanedClientIp = clientIp.replace(/^::ffff:/, '');
+      if (!user.allowedIPs.some((ip: string) => ip === cleanedClientIp || cleanedClientIp.startsWith(ip))) {
         return NextResponse.json({ error: 'Unauthorized IP' }, { status: 403 });
       }
     }
@@ -68,3 +70,7 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const config = {
+  runtime: 'edge',
+};

@@ -15,8 +15,11 @@ export async function middleware(request: NextRequest) {
 
   // Check for file access
   if (request.nextUrl.pathname.startsWith('/api/files') || request.nextUrl.pathname.startsWith('/uploads')) {
-    const clientIp = request.ip || request.headers.get('x-forwarded-for') || '';
+    let clientIp = request.ip || request.headers.get('x-forwarded-for') || '';
     const authKey = request.headers.get('authorization');
+
+    // Remove the IPv6 prefix if present
+    clientIp = clientIp.replace(/^::ffff:/, '');
 
     // Extract file ID or name from the URL
     const fileIdentifier = request.nextUrl.pathname.split('/').pop() || '';
