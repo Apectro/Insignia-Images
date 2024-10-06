@@ -22,7 +22,8 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'files');
+    // Change the upload directory to a non-public location
+    const uploadDir = join(process.cwd(), 'uploads', 'files');
 
     try {
       await mkdir(uploadDir, { recursive: true });
@@ -39,7 +40,8 @@ export async function POST(req: NextRequest) {
     const result = await db.collection('files').insertOne({
       userId: session.user.email,
       filename: file.name,
-      path: `/uploads/files/${file.name}`,
+      // Update the path to reflect the new non-public location
+      path: join('uploads', 'files', file.name),
       fileType: file.type,
       uploadedAt: new Date(),
     });
