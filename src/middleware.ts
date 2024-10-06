@@ -24,7 +24,7 @@ export async function middleware(request: NextRequest) {
     // Use the new API route path
     const url = new URL('/api/file-access', request.url);
     url.searchParams.append('fileIdentifier', fileIdentifier);
-    url.searchParams.append('clientIp', clientIp);
+    url.searchParams.append('clientIp', clientIp); // Don't encode here
     if (authKey) {
       url.searchParams.append('authKey', authKey);
     }

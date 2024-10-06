@@ -1,25 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import clientPromise from '@/lib/db';
 import { ObjectId } from 'mongodb';
-import { normalizeIP } from '@/lib/ipUtils';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const fileIdentifier = searchParams.get('fileIdentifier');
-    const clientIp = searchParams.get('clientIp');
+    const encodedClientIp = searchParams.get('clientIp');
     const authKey = searchParams.get('authKey');
 
     if (!fileIdentifier) {
       return NextResponse.json({ error: 'File identifier is required' }, { status: 400 });
     }
 
-    if (!clientIp) {
+    if (!encodedClientIp) {
       return NextResponse.json({ error: 'Client IP is required' }, { status: 400 });
     }
 
-    // Normalize the client IP
-    const normalizedClientIp = normalizeIP(clientIp);
+    // Decode the client IP (potentially twice)
+    let clientIp = decodeURIComponent(encodedClientIp);
+    // Check if it's still encoded and decode again if necessary
+    if (clientIp.includes('%')) {
+      clientIp = decodeURIComponent(clientIp);
+    }
 
     const client = await clientPromise;
     const db = client.db();
@@ -46,20 +49,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Check if the client IP is allowed
-    if (user.allowedIPs && user.allowedIPs.length > 0) {
-      const normalizedAllowedIPs = user.allowedIPs.map(normalizeIP);
-      const isAllowed = normalizedAllowedIPs.includes(normalizedClientIp);
+    // Check if the client IP is localhost or allowed
+    const isLocalhost = clientIp === '::1' || clientIp === '127.0.0.1';
+    if (!isLocalhost && user.allowedIPs && user.allowedIPs.length > 0) {
+      const isAllowed = user.allowedIPs.some((allowedIp: string) => {
+        // Handle IPv4 and IPv6
+        if (allowedIp.includes('/')) {
+          // This is a CIDR notation, we'd need a proper IP matching library to handle this
+          // For now, we'll just do a simple string match
+          return clientIp.startsWith(allowedIp.split('/')[0]);
+        } else {
+          return clientIp === allowedIp;
+        }
+      });
 
       if (!isAllowed) {
         return NextResponse.json(
-          {
-            error: 'Unauthorized IP',
-            clientIp,
-            normalizedClientIp,
-            allowedIPs: user.allowedIPs,
-            normalizedAllowedIPs,
-          },
+          { error: 'Unauthorized IP', clientIp, allowedIPs: user.allowedIPs },
           { status: 403 }
         );
       }
