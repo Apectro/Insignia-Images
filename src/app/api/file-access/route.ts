@@ -24,15 +24,14 @@ export async function GET(request: NextRequest) {
     const db = client.db();
 
     // Prepare the query
-    let query: { $or: Array<{ _id?: ObjectId; filename?: string }> };
+    let query: { $or: Array<{ _id?: ObjectId; filename?: string }> } = { $or: [] };
 
     if (ObjectId.isValid(fileIdentifier)) {
-      query = { $or: [{ _id: new ObjectId(fileIdentifier) }, { filename: fileIdentifier }] };
-    } else {
-      query = { $or: [{ filename: fileIdentifier }] };
+      query.$or.push({ _id: new ObjectId(fileIdentifier) });
     }
+    query.$or.push({ filename: fileIdentifier });
 
-    // Find the file and its owner
+    // Find the file
     const file = await db.collection('files').findOne(query);
 
     if (!file) {
@@ -45,20 +44,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Check if the client IP is allowed
+    // Simple IP check
     if (user.allowedIPs && user.allowedIPs.length > 0) {
-      const isAllowed = user.allowedIPs.some((allowedIp: string) => {
-        // Handle IPv4 and IPv6
-        if (allowedIp.includes('/')) {
-          // This is a CIDR notation, we'd need a proper IP matching library to handle this
-          // For now, we'll just do a simple string match
-          return clientIp.startsWith(allowedIp.split('/')[0]);
-        } else {
-          return clientIp === allowedIp;
-        }
-      });
-
-      if (!isAllowed) {
+      if (!user.allowedIPs.includes(clientIp)) {
         return NextResponse.json({ error: 'Unauthorized IP' }, { status: 403 });
       }
     }
