@@ -17,12 +17,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Client IP is required' }, { status: 400 });
     }
 
-    // Decode the client IP (potentially twice)
-    let clientIp = decodeURIComponent(encodedClientIp);
-    // Check if it's still encoded and decode again if necessary
-    if (clientIp.includes('%')) {
-      clientIp = decodeURIComponent(clientIp);
-    }
+    // Decode the client IP
+    const clientIp = decodeURIComponent(encodedClientIp);
 
     const client = await clientPromise;
     const db = client.db();
@@ -49,9 +45,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Check if the client IP is localhost or allowed
-    const isLocalhost = clientIp === '::1' || clientIp === '127.0.0.1';
-    if (!isLocalhost && user.allowedIPs && user.allowedIPs.length > 0) {
+    // Check if the client IP is allowed
+    if (user.allowedIPs && user.allowedIPs.length > 0) {
       const isAllowed = user.allowedIPs.some((allowedIp: string) => {
         // Handle IPv4 and IPv6
         if (allowedIp.includes('/')) {
@@ -64,10 +59,7 @@ export async function GET(request: NextRequest) {
       });
 
       if (!isAllowed) {
-        return NextResponse.json(
-          { error: 'Unauthorized IP', clientIp, allowedIPs: user.allowedIPs },
-          { status: 403 }
-        );
+        return NextResponse.json({ error: 'Unauthorized IP' }, { status: 403 });
       }
     }
 
