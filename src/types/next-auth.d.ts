@@ -7,6 +7,15 @@ declare module 'next-auth' {
       name?: string | null;
       email?: string | null;
       image?: string | null;
+      allowedIPs?: string[];
+      enableAuthKey?: boolean;
+      authKey?: string;
     };
+  }
+
+  interface User {
+    allowedIPs?: string[];
+    enableAuthKey?: boolean;
+    authKey?: string;
   }
 }

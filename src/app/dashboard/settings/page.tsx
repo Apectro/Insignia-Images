@@ -1,87 +1,119 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+// app/dashboard/settings/page.tsx
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function SettingsPage() {
+  const { data: session } = useSession();
+  const { toast } = useToast();
+  const [allowedIPs, setAllowedIPs] = useState('');
+  const [enableAuthKey, setEnableAuthKey] = useState(false);
+  const [authKey, setAuthKey] = useState('');
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch('/api/user/settings');
+        if (response.ok) {
+          const data = await response.json();
+          setAllowedIPs(data.allowedIPs.join(', '));
+          setEnableAuthKey(data.enableAuthKey);
+          setAuthKey(data.authKey || '');
+        } else {
+          throw new Error('Failed to fetch settings');
+        }
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load settings',
+          variant: 'destructive',
+        });
+      }
+    };
+    fetchSettings();
+  }, [toast]);
+
+  const handleSaveSettings = async () => {
+    try {
+      const response = await fetch('/api/user/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          allowedIPs: allowedIPs.split(',').map((ip) => ip.trim()),
+          enableAuthKey,
+          authKey,
+        }),
+      });
+
+      if (response.ok) {
+        toast({ title: 'Success', description: 'Settings saved successfully' });
+      } else {
+        throw new Error('Failed to save settings');
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save settings',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  if (!session) {
+    return <div>Please sign in to view settings.</div>;
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
-      </div>
-      <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="w-full flex flex-wrap justify-start sm:justify-center">
-          <TabsTrigger value="profile" className="flex-grow sm:flex-grow-0">
-            Profile
-          </TabsTrigger>
-          <TabsTrigger value="account" className="flex-grow sm:flex-grow-0">
-            Account
-          </TabsTrigger>
-          <TabsTrigger value="appearance" className="flex-grow sm:flex-grow-0">
-            Appearance
-          </TabsTrigger>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Settings</h1>
+      <Tabs defaultValue="account">
+        <TabsList>
+          <TabsTrigger value="account">Account</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
-        <TabsContent value="profile">
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-              <CardDescription>Update your profile details here.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input id="name" placeholder="Your name" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="Your email" />
-              </div>
-              <Button className="w-full sm:w-auto">Save Changes</Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
         <TabsContent value="account">
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Settings</CardTitle>
-              <CardDescription>Manage your account preferences.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="password">New Password</Label>
-                  <Input id="password" type="password" placeholder="Enter new password" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-password">Confirm New Password</Label>
-                  <Input id="confirm-password" type="password" placeholder="Confirm new password" />
-                </div>
-                <Button className="w-full sm:w-auto">Update Password</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <h2 className="text-xl font-semibold mb-2">Account Settings</h2>
+          {/* Add your existing account settings here */}
         </TabsContent>
-        <TabsContent value="appearance">
-          <Card>
-            <CardHeader>
-              <CardTitle>Appearance Settings</CardTitle>
-              <CardDescription>Customize the look and feel of your dashboard.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="theme">Theme</Label>
-                  <select id="theme" className="w-full p-2 border rounded">
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                    <option value="system">System</option>
-                  </select>
-                </div>
-                <Button className="w-full sm:w-auto">Save Preferences</Button>
+        <TabsContent value="security">
+          <h2 className="text-xl font-semibold mb-2">Security Settings</h2>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="allowed-ips">Allowed IPs (comma-separated)</Label>
+              <Input
+                id="allowed-ips"
+                value={allowedIPs}
+                onChange={(e) => setAllowedIPs(e.target.value)}
+                placeholder="e.g. 192.168.1.1, 10.0.0.1"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch id="enable-auth-key" checked={enableAuthKey} onCheckedChange={setEnableAuthKey} />
+              <Label htmlFor="enable-auth-key">Enable Authorization Key</Label>
+            </div>
+            {enableAuthKey && (
+              <div>
+                <Label htmlFor="auth-key">Authorization Key</Label>
+                <Input
+                  id="auth-key"
+                  value={authKey}
+                  onChange={(e) => setAuthKey(e.target.value)}
+                  placeholder="Enter authorization key"
+                />
               </div>
-            </CardContent>
-          </Card>
+            )}
+            <Button onClick={handleSaveSettings}>Save Settings</Button>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

@@ -23,6 +23,9 @@ export async function POST(req: Request) {
       name,
       email,
       password: hashedPassword,
+      allowedIPs: [],
+      enableAuthKey: false,
+      authKey: '',
     });
 
     return NextResponse.json(

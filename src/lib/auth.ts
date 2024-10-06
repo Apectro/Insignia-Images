@@ -26,12 +26,37 @@ export const authOptions: NextAuthOptions = {
 
         if (!isPasswordValid) return null;
 
-        return { id: user._id.toString(), email: user.email, name: user.name };
+        return {
+          id: user._id.toString(),
+          email: user.email,
+          name: user.name,
+          allowedIPs: user.allowedIPs || [],
+          enableAuthKey: user.enableAuthKey || false,
+          authKey: user.authKey || '',
+        };
       },
     }),
   ],
   session: {
     strategy: 'jwt',
+  },
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.allowedIPs = user.allowedIPs;
+        token.enableAuthKey = user.enableAuthKey;
+        token.authKey = user.authKey;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.allowedIPs = token.allowedIPs as string[];
+        session.user.enableAuthKey = token.enableAuthKey as boolean;
+        session.user.authKey = token.authKey as string;
+      }
+      return session;
+    },
   },
   pages: {
     signIn: '/auth/login',

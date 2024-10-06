@@ -6,22 +6,50 @@ import { ObjectId } from 'mongodb';
 import { unlink } from 'fs/promises';
 import { join } from 'path';
 
+async function checkAuthorization(req: NextRequest, file: any) {
+  const client = await clientPromise;
+  const db = client.db();
+  const user = await db.collection('users').findOne({ email: file.userId });
+
+  if (!user) {
+    return { authorized: false, error: 'User not found' };
+  }
+
+  const clientIp = req.headers.get('x-forwarded-for') || req.ip;
+  const authKey = req.headers.get('authorization');
+
+  // Check if the client IP is allowed
+  if (user.allowedIPs && user.allowedIPs.length > 0) {
+    if (!user.allowedIPs.includes(clientIp)) {
+      return { authorized: false, error: 'Unauthorized IP' };
+    }
+  }
+
+  // Check if Authorization Key is required and valid
+  if (user.enableAuthKey && user.authKey) {
+    if (!authKey || authKey !== `Bearer ${user.authKey}`) {
+      return { authorized: false, error: 'Invalid Authorization Key' };
+    }
+  }
+
+  return { authorized: true };
+}
+
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user || !session.user.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const client = await clientPromise;
     const db = client.db();
     const file = await db.collection('files').findOne({
       _id: new ObjectId(params.id),
-      userId: session.user.email,
     });
 
     if (!file) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
+    }
+
+    const authResult = await checkAuthorization(req, file);
+    if (!authResult.authorized) {
+      return NextResponse.json({ error: authResult.error }, { status: 403 });
     }
 
     return NextResponse.json(file);
