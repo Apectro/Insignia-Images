@@ -1,147 +1,144 @@
-'use client'
+'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { toast } from '@/components/ui/use-toast';
+import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/components/ui/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Clipboard, Check } from 'lucide-react';
 
-const securitySchema = z.object({
-  enableAuthKey: z.boolean(),
-  authKey: z.string().min(1, 'Authorization Key is required when enabled'),
-  allowedIPs: z.string().optional(),
-});
-
-type SecurityFormData = z.infer<typeof securitySchema>;
-
-export default function SecurityTab() {
+export default function SettingsPage() {
   const { data: session } = useSession();
+  const { toast } = useToast();
+  const [allowedIPs, setAllowedIPs] = useState('');
+  const [enableAuthKey, setEnableAuthKey] = useState(false);
+  const [authKey, setAuthKey] = useState('');
   const [isCopied, setIsCopied] = useState(false);
-  const [apiKey, setApiKey] = useState<string | null>(null);
-
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors },
-  } = useForm<SecurityFormData>({
-    resolver: zodResolver(securitySchema),
-    defaultValues: {
-      enableAuthKey: false,
-      authKey: '',
-      allowedIPs: '',
-    },
-  });
-
-  const enableAuthKey = watch('enableAuthKey');
-  const authKey = watch('authKey');
 
   useEffect(() => {
-    // Fetch current settings when component mounts
     const fetchSettings = async () => {
-      const response = await fetch('/api/user/settings');
-      if (response.ok) {
-        const data = await response.json();
-        setValue('enableAuthKey', data.enableAuthKey);
-        setValue('authKey', data.authKey || '');
-        setValue('allowedIPs', data.allowedIPs ? data.allowedIPs.join(', ') : '');
+      try {
+        const response = await fetch('/api/user/settings');
+        if (response.ok) {
+          const data = await response.json();
+          setAllowedIPs(data.allowedIPs.join(', '));
+          setEnableAuthKey(data.enableAuthKey);
+          setAuthKey(data.authKey || '');
+        } else {
+          throw new Error('Failed to fetch settings');
+        }
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load settings',
+          variant: 'destructive',
+        });
       }
     };
     fetchSettings();
-  }, [setValue]);
+  }, [toast]);
 
-  useEffect(() => {
-    if (enableAuthKey && authKey) {
-      setApiKey(`Bearer ${authKey}`);
-    } else {
-      setApiKey(null);
-    }
-  }, [enableAuthKey, authKey]);
-
-  const onSubmit = async (data: SecurityFormData) => {
-    const response = await fetch('/api/user/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...data,
-        allowedIPs: data.allowedIPs ? data.allowedIPs.split(',').map((ip) => ip.trim()) : [],
-      }),
-    });
-
-    if (response.ok) {
-      toast({
-        title: 'Settings updated',
-        description: 'Your security settings have been successfully updated.',
+  const handleSaveSettings = async () => {
+    try {
+      const response = await fetch('/api/user/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          allowedIPs: allowedIPs.split(',').map((ip) => ip.trim()),
+          enableAuthKey,
+          authKey,
+        }),
       });
-    } else {
+
+      if (response.ok) {
+        toast({ title: 'Success', description: 'Settings saved successfully' });
+      } else {
+        throw new Error('Failed to save settings');
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update settings. Please try again.',
+        description: 'Failed to save settings',
         variant: 'destructive',
       });
     }
   };
 
   const copyToClipboard = () => {
-    if (apiKey) {
-      navigator.clipboard.writeText(apiKey).then(() => {
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-      });
-    }
+    const apiKey = `Bearer ${authKey}`;
+    navigator.clipboard.writeText(apiKey).then(() => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    });
   };
 
+  if (!session) {
+    return <div>Please sign in to view settings.</div>;
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div>
-        <Label htmlFor="enableAuthKey" className="text-right">
-          Enable Authorization Key
-        </Label>
-        <Switch id="enableAuthKey" {...register('enableAuthKey')} />
-      </div>
-
-      {enableAuthKey && (
-        <div>
-          <Label htmlFor="authKey">Authorization Key</Label>
-          <Input
-            id="authKey"
-            type="text"
-            {...register('authKey')}
-            className={errors.authKey ? 'border-red-500' : ''}
-          />
-          {errors.authKey && <p className="text-red-500">{errors.authKey.message}</p>}
-        </div>
-      )}
-
-      <div>
-        <Label htmlFor="allowedIPs">Allowed IPs (comma-separated)</Label>
-        <Input id="allowedIPs" type="text" {...register('allowedIPs')} />
-      </div>
-
-      {apiKey && (
-        <div className="mt-4">
-          <Label>API Key for Testing</Label>
-          <div className="flex items-center mt-2">
-            <Input type="text" value={apiKey} readOnly className="flex-grow mr-2" />
-            <Button
-              type="button"
-              onClick={copyToClipboard}
-              className="flex items-center justify-center w-10 h-10"
-            >
-              {isCopied ? <Check className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
-            </Button>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Settings</h1>
+      <Tabs defaultValue="account">
+        <TabsList>
+          <TabsTrigger value="account">Account</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
+        </TabsList>
+        <TabsContent value="account">
+          <h2 className="text-xl font-semibold mb-2">Account Settings</h2>
+          {/* Add your existing account settings here */}
+        </TabsContent>
+        <TabsContent value="security">
+          <h2 className="text-xl font-semibold mb-2">Security Settings</h2>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="allowed-ips">Allowed IPs (comma-separated)</Label>
+              <Input
+                id="allowed-ips"
+                value={allowedIPs}
+                onChange={(e) => setAllowedIPs(e.target.value)}
+                placeholder="e.g. 192.168.1.1, 10.0.0.1"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch id="enable-auth-key" checked={enableAuthKey} onCheckedChange={setEnableAuthKey} />
+              <Label htmlFor="enable-auth-key">Enable Authorization Key</Label>
+            </div>
+            {enableAuthKey && (
+              <div>
+                <Label htmlFor="auth-key">Authorization Key</Label>
+                <Input
+                  id="auth-key"
+                  value={authKey}
+                  onChange={(e) => setAuthKey(e.target.value)}
+                  placeholder="Enter authorization key"
+                />
+              </div>
+            )}
+            {enableAuthKey && authKey && (
+              <div>
+                <Label htmlFor="api-key">API Key for Testing</Label>
+                <div className="flex items-center mt-2">
+                  <Input id="api-key" value={`Bearer ${authKey}`} readOnly className="flex-grow mr-2" />
+                  <Button
+                    type="button"
+                    onClick={copyToClipboard}
+                    className="flex items-center justify-center w-10 h-10"
+                  >
+                    {isCopied ? <Check className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+            )}
+            <Button onClick={handleSaveSettings}>Save Settings</Button>
           </div>
-        </div>
-      )}
-
-      <Button type="submit">Save Settings</Button>
-    </form>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
